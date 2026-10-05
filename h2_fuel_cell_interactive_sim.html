@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>H₂–O₂ PEM Fuel Cell · Interactive Simulation</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --blue:#00d4ff; --blue2:#0088cc; --blue3:#004488;
+  --yellow:#ffe144; --yellow2:#ffaa00;
+  --red:#ff3a00; --orange:#ff8800;
+  --green:#00ff88; --green2:#00cc55;
+  --teal:#00e5cc; --purple:#aa55ff;
+  --bg:#010c1a; --bg2:#020f22; --panel:#0a1828;
+  --border:#0d3a5a; --text:#c8e8ff; --dim:#4a7a99;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body {
+  background: radial-gradient(ellipse 140% 70% at 50% -10%, #061c38 0%, #010c1a 55%, #000810 100%);
+  font-family:'Rajdhani',sans-serif;
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── PAGE HEADER ────────────────────────────────────── */
+.page-header {
+  text-align:center;
+  padding:18px 20px 6px;
+  border-bottom:1px solid #0a2a44;
+  position:relative;
+  background:rgba(0,8,20,.5);
+}
+.page-header h1 {
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(.95rem,2.4vw,1.7rem);
+  font-weight:900;
+  letter-spacing:.14em;
+  color:var(--blue);
+  text-shadow:0 0 28px #00d4ffaa,0 0 70px #00d4ff33;
+}
+.page-header p {
+  font-family:'Share Tech Mono',monospace;
+  font-size:clamp(.6rem,1.3vw,.78rem);
+  color:var(--dim);
+  letter-spacing:.28em;
+  text-transform:uppercase;
+  margin-top:3px;
+}
+.eq-badge {
+  display:inline-block; margin-top:6px;
+  background:linear-gradient(135deg,rgba(255,225,68,.1),rgba(255,136,0,.14));
+  border:1px solid #ffe14440; border-radius:5px;
+  padding:3px 14px;
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(.6rem,1.2vw,.78rem);
+  color:var(--yellow); text-shadow:0 0 12px var(--yellow2);
+}
+
+/* ── LAYOUT ─────────────────────────────────────────── */
+.app-layout {
+  display:grid;
+  grid-template-columns:300px 1fr 300px;
+  grid-template-rows:auto 1fr auto;
+  gap:12px;
+  padding:12px;
+  max-width:1600px;
+  margin:0 auto;
+  min-height:calc(100vh - 90px);
+}
+
+/* ── PANEL BASE ─────────────────────────────────────── */
+.panel-box {
+  background:rgba(5,15,30,.9);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:14px;
+  backdrop-filter:blur(8px);
+  position:relative;
+  overflow:hidden;
+}
+.panel-box::before {
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--ac,var(--blue));
+  box-shadow:0 0 10px var(--ac,var(--blue));
+}
+.panel-box h2 {
+  font-family:'Orbitron',sans-serif;
+  font-size:.7rem; font-weight:700;
+  letter-spacing:.15em; text-transform:uppercase;
+  color:var(--ac,var(--blue));
+  text-shadow:0 0 8px var(--ac,var(--blue));
+  margin-bottom:12px;
+  padding-bottom:8px;
+  border-bottom:1px solid #0a2a44;
+}
+
+/* ── CONTROL PANEL (LEFT) ───────────────────────────── */
+.control-panel { --ac:var(--blue); grid-row:1/4; }
+
+.slider-group { margin-bottom:16px; }
+.slider-label {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:6px;
+}
+.slider-label span {
+  font-family:'Rajdhani',sans-serif;
+  font-size:.82rem; font-weight:600; color:#88b8cc;
+}
+.slider-label .val {
+  font-family:'Orbitron',sans-serif;
+  font-size:.88rem; font-weight:700;
+  color:var(--blue); text-shadow:0 0 8px var(--blue);
+}
+
+input[type=range] {
+  -webkit-appearance:none;
+  width:100%; height:6px;
+  background:linear-gradient(90deg,var(--blue2),var(--blue));
+  border-radius:3px;
+  outline:none;
+  cursor:pointer;
+  box-shadow:0 0 8px rgba(0,212,255,.3);
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none;
+  width:18px; height:18px;
+  border-radius:50%;
+  background:radial-gradient(circle,#00d4ff,#0066aa);
+  border:2px solid #00d4ff;
+  box-shadow:0 0 10px #00d4ff, 0 0 20px #00d4ff66;
+  cursor:pointer;
+  transition:box-shadow .2s;
+}
+input[type=range]::-webkit-slider-thumb:hover {
+  box-shadow:0 0 16px #00d4ff, 0 0 30px #00d4ff88;
+}
+
+.pressure-arc {
+  width:100%; height:120px;
+  position:relative; margin-bottom:10px;
+}
+#arcCanvas { width:100%; height:100%; }
+
+.btn-group { display:flex; gap:8px; margin-top:12px; }
+.btn {
+  flex:1; padding:10px 6px;
+  font-family:'Orbitron',sans-serif;
+  font-size:.65rem; font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase;
+  border:none; border-radius:6px;
+  cursor:pointer; transition:all .2s;
+}
+.btn-start {
+  background:linear-gradient(135deg,#00aa44,#00ff88);
+  color:#002210;
+  box-shadow:0 0 15px rgba(0,255,136,.3);
+}
+.btn-start:hover { box-shadow:0 0 25px rgba(0,255,136,.5); transform:translateY(-1px); }
+.btn-stop {
+  background:linear-gradient(135deg,#aa0000,#ff3a00);
+  color:#fff;
+  box-shadow:0 0 15px rgba(255,58,0,.3);
+}
+.btn-stop:hover { box-shadow:0 0 25px rgba(255,58,0,.5); transform:translateY(-1px); }
+
+.warning-box {
+  border-radius:6px; padding:8px 10px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:.68rem; line-height:1.5;
+  margin-top:10px; display:none;
+}
+.warning-box.show { display:block; }
+.warning-box.warn {
+  background:rgba(255,136,0,.1);
+  border:1px solid #ff880055;
+  color:#ffaa00;
+}
+.warning-box.danger {
+  background:rgba(255,40,0,.12);
+  border:1px solid #ff330055;
+  color:#ff5500;
+}
+.warning-box.low {
+  background:rgba(0,100,200,.1);
+  border:1px solid #0066aa44;
+  color:#4488cc;
+}
+
+/* auto flow rate display */
+.flow-display {
+  background:rgba(0,30,60,.5);
+  border:1px solid #0a3a5a;
+  border-radius:6px; padding:10px;
+  margin-top:10px;
+}
+.flow-display .frow {
+  display:flex; justify-content:space-between;
+  margin-bottom:6px;
+}
+.flow-display .frow:last-child { margin-bottom:0; }
+.flow-display .fname {
+  font-size:.76rem; color:var(--dim);
+}
+.flow-display .fval {
+  font-family:'Orbitron',sans-serif;
+  font-size:.76rem; font-weight:600;
+  color:var(--blue);
+}
+
+/* ── CENTER — 3D VISUALIZATION ───────────────────────── */
+.viz-panel {
+  grid-column:2;
+  grid-row:1/3;
+  --ac:var(--teal);
+  position:relative;
+}
+#vizCanvas {
+  width:100%; height:100%;
+  border-radius:8px;
+  display:block;
+  min-height:480px;
+}
+.canvas-overlay {
+  position:absolute; top:0;left:0;right:0;bottom:0;
+  pointer-events:none;
+}
+.reaction-eq {
+  position:absolute; bottom:14px; left:50%;
+  transform:translateX(-50%);
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(.6rem,1.2vw,.78rem);
+  font-weight:700; white-space:nowrap;
+  text-shadow:0 0 12px rgba(0,212,255,.5);
+}
+
+/* ── OUTPUT PANEL (RIGHT) ───────────────────────────── */
+.output-panel { --ac:var(--yellow); grid-row:1/3; }
+
+.metric-card {
+  background:rgba(0,15,35,.6);
+  border:1px solid var(--mc-border,#0a3a5a);
+  border-radius:8px; padding:12px;
+  margin-bottom:10px; position:relative; overflow:hidden;
+}
+.metric-card::before {
+  content:''; position:absolute;
+  top:0;left:0;width:3px;height:100%;
+  background:var(--mc-ac,var(--blue));
+  box-shadow:0 0 8px var(--mc-ac,var(--blue));
+}
+.metric-card .mc-label {
+  font-family:'Share Tech Mono',monospace;
+  font-size:.62rem; color:var(--dim);
+  letter-spacing:.15em; text-transform:uppercase;
+  margin-bottom:5px;
+}
+.metric-card .mc-val {
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(1rem,2vw,1.4rem);
+  font-weight:700; line-height:1;
+}
+.metric-card .mc-unit {
+  font-family:'Rajdhani',sans-serif;
+  font-size:.8rem; font-weight:600;
+  color:var(--dim); margin-left:4px;
+}
+.metric-card .mc-bar {
+  height:4px; background:#0a2030;
+  border-radius:2px; margin-top:8px; overflow:hidden;
+}
+.metric-card .mc-bar-fill {
+  height:100%; border-radius:2px;
+  transition:width .6s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 0 6px var(--mc-ac,var(--blue));
+}
+
+/* progress ring */
+.ring-wrap {
+  display:flex; align-items:center; gap:10px;
+}
+.ring-svg { flex-shrink:0; }
+
+/* ── DASHBOARD (BOTTOM CENTER) ───────────────────────── */
+.dashboard {
+  grid-column:2;
+  --ac:var(--green);
+}
+.dash-grid {
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:10px;
+}
+.dash-metric {
+  background:rgba(0,20,45,.7);
+  border:1px solid #0a3050;
+  border-radius:7px; padding:10px 8px;
+  text-align:center; position:relative;
+}
+.dash-metric .dl { font-family:'Share Tech Mono',monospace; font-size:.58rem; color:var(--dim); letter-spacing:.1em; text-transform:uppercase; }
+.dash-metric .dv { font-family:'Orbitron',sans-serif; font-size:clamp(.85rem,1.8vw,1.1rem); font-weight:700; margin-top:3px; }
+.dash-metric .ds { font-family:'Share Tech Mono',monospace; font-size:.55rem; margin-top:2px; }
+.fault-box {
+  background:rgba(255,58,0,.08);
+  border:1px solid #ff3a0033;
+  border-radius:7px; padding:10px;
+  text-align:center;
+}
+.fault-box .dl { font-family:'Share Tech Mono',monospace; font-size:.58rem; color:var(--dim); letter-spacing:.1em; }
+.fault-box .dv { font-family:'Orbitron',sans-serif; font-size:.78rem; font-weight:700; margin-top:4px; }
+
+/* ── ANIMATIONS ─────────────────────────────────────── */
+@keyframes pulse { 0%,100%{opacity:.7;}50%{opacity:1;} }
+@keyframes blink { 0%,100%{opacity:1;}50%{opacity:.2;} }
+@keyframes spin  { from{transform:rotate(0deg);}to{transform:rotate(360deg);} }
+@keyframes float { 0%,100%{transform:translateY(0);}50%{transform:translateY(-3px);} }
+
+.pulse-anim { animation:pulse 2s ease-in-out infinite; }
+.blink-anim { animation:blink 1s ease-in-out infinite; }
+.float-anim { animation:float 3s ease-in-out infinite; }
+
+/* scrollbar */
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:#010c1a; }
+::-webkit-scrollbar-thumb { background:#0a3a5a; border-radius:2px; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>H₂–O₂ PEM FUEL CELL · INTERACTIVE SIMULATION</h1>
+  <p>Pressure → Voltage → Power · Real-Time 3D Reaction Visualization</p>
+  <div class="eq-badge">⚗ 2H₂ + O₂ → 2H₂O + Electricity + Heat</div>
+</div>
+
+<div class="app-layout">
+
+  <!-- ═══ LEFT: CONTROL PANEL ═══ -->
+  <div class="panel-box control-panel">
+    <h2>⬡ Input Control Panel</h2>
+
+    <!-- Pressure Arc Gauge -->
+    <div class="pressure-arc">
+      <canvas id="arcCanvas" width="280" height="120"></canvas>
+    </div>
+
+    <!-- Pressure Slider -->
+    <div class="slider-group">
+      <div class="slider-label">
+        <span>H₂ Input Pressure</span>
+        <span class="val" id="pressureVal">1.0 bar</span>
+      </div>
+      <input type="range" id="pressureSlider" min="0.5" max="3" step="0.05" value="1.0">
+      <div style="display:flex;justify-content:space-between;margin-top:3px;">
+        <span style="font-size:.62rem;color:var(--dim);">0.5 bar</span>
+        <span style="font-size:.62rem;color:var(--dim);">3.0 bar</span>
+      </div>
+    </div>
+
+    <!-- Warning box -->
+    <div class="warning-box" id="warningBox"></div>
+
+    <!-- Auto flow rate -->
+    <div class="flow-display">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;">AUTO-CALCULATED FLOW</div>
+      <div class="frow"><span class="fname">H₂ Flow Rate</span><span class="fval" id="flowH2">8.4 g/min</span></div>
+      <div class="frow"><span class="fname">O₂ Flow Rate</span><span class="fval" id="flowO2">67.2 L/min</span></div>
+      <div class="frow"><span class="fname">Stack Efficiency</span><span class="fval" id="stackEff">58.0%</span></div>
+      <div class="frow"><span class="fname">Cell Count</span><span class="fval">400 cells</span></div>
+    </div>
+
+    <!-- Start / Stop -->
+    <div class="btn-group">
+      <button class="btn btn-start" id="btnStart" onclick="startReaction()">▶ START</button>
+      <button class="btn btn-stop" id="btnStop" onclick="stopReaction()">■ STOP</button>
+    </div>
+
+    <!-- Status indicator -->
+    <div style="margin-top:12px;padding:8px;background:rgba(0,20,50,.5);border:1px solid #0a3050;border-radius:6px;text-align:center;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--dim);letter-spacing:.1em;">SYSTEM STATUS</div>
+      <div id="statusText" style="font-family:'Orbitron',sans-serif;font-size:.85rem;font-weight:700;margin-top:3px;color:var(--green);text-shadow:0 0 8px var(--green);">RUNNING</div>
+      <div id="statusDot" style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);margin:4px auto 0;animation:pulse 1.5s infinite;"></div>
+    </div>
+  </div>
+
+  <!-- ═══ CENTER: 3D VISUALIZATION ═══ -->
+  <div class="panel-box viz-panel">
+    <h2 style="position:absolute;top:10px;left:12px;z-index:5;">⬡ 3D PEM Fuel Cell Stack — Live Reaction</h2>
+    <canvas id="vizCanvas"></canvas>
+    <div class="canvas-overlay">
+      <div class="reaction-eq">
+        <span style="color:#00d4ff;text-shadow:0 0 10px #00d4ff;">2H₂</span>
+        <span style="color:#c8e8ff;"> + </span>
+        <span style="color:#aaddff;text-shadow:0 0 10px #aaddff;">O₂</span>
+        <span style="color:#c8e8ff;"> → </span>
+        <span style="color:#55ccff;text-shadow:0 0 10px #55ccff;">2H₂O</span>
+        <span style="color:#c8e8ff;"> + </span>
+        <span style="color:#ffe144;text-shadow:0 0 10px #ffaa00;">Electricity</span>
+        <span style="color:#c8e8ff;"> + </span>
+        <span style="color:#ff8800;text-shadow:0 0 10px #ff8800;">Heat</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ RIGHT: OUTPUT PANEL ═══ -->
+  <div class="panel-box output-panel">
+    <h2>⬡ Real-Time Output</h2>
+
+    <!-- Voltage -->
+    <div class="metric-card" style="--mc-border:#ffe14444;--mc-ac:var(--yellow);">
+      <div class="mc-label">⚡ Voltage Output</div>
+      <div class="mc-val" style="color:var(--yellow);text-shadow:0 0 12px var(--yellow2);">
+        <span id="outVoltage">350</span><span class="mc-unit">V</span>
+      </div>
+      <div class="mc-bar"><div class="mc-bar-fill" id="barVoltage" style="background:linear-gradient(90deg,#ffaa00,#ffe144);width:58%;"></div></div>
+    </div>
+
+    <!-- Power -->
+    <div class="metric-card" style="--mc-border:#00ff8844;--mc-ac:var(--green);">
+      <div class="mc-label">⚙ Power Output</div>
+      <div class="mc-val" style="color:var(--green);text-shadow:0 0 12px var(--green2);">
+        <span id="outPower">80</span><span class="mc-unit">kW</span>
+      </div>
+      <div class="mc-bar"><div class="mc-bar-fill" id="barPower" style="background:linear-gradient(90deg,#00cc55,#00ff88);width:53%;"></div></div>
+    </div>
+
+    <!-- Water Production -->
+    <div class="metric-card" style="--mc-border:#00d4ff44;--mc-ac:var(--blue);">
+      <div class="mc-label">💧 Water Production</div>
+      <div class="mc-val" style="color:var(--blue);text-shadow:0 0 10px var(--blue);">
+        <span id="outWater">7.0</span><span class="mc-unit">L/hr</span>
+      </div>
+      <div class="mc-bar"><div class="mc-bar-fill" id="barWater" style="background:linear-gradient(90deg,#0088cc,#00d4ff);width:47%;"></div></div>
+    </div>
+
+    <!-- Heat Generation -->
+    <div class="metric-card" style="--mc-border:#ff880044;--mc-ac:var(--orange);">
+      <div class="mc-label">🔥 Heat Generation</div>
+      <div class="ring-wrap">
+        <svg class="ring-svg" width="50" height="50" viewBox="0 0 50 50">
+          <circle cx="25" cy="25" r="20" fill="none" stroke="#0a2030" stroke-width="5"/>
+          <circle id="heatRing" cx="25" cy="25" r="20" fill="none" stroke="#ff8800" stroke-width="5"
+            stroke-dasharray="125.6" stroke-dashoffset="75.36" stroke-linecap="round"
+            transform="rotate(-90 25 25)" style="filter:drop-shadow(0 0 4px #ff8800);transition:stroke-dashoffset .6s;"/>
+          <text x="25" y="30" text-anchor="middle" font-family="Orbitron" font-size="9" fill="#ff8800" font-weight="700" id="heatPct">40%</text>
+        </svg>
+        <div>
+          <div class="mc-val" style="color:var(--orange);text-shadow:0 0 10px var(--orange);font-size:1.1rem;">
+            <span id="outHeat">48</span><span class="mc-unit">kW</span>
+          </div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:var(--dim);">thermal loss</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Temperature -->
+    <div class="metric-card" style="--mc-border:#ff3a0044;--mc-ac:var(--red);">
+      <div class="mc-label">🌡 FC Temperature</div>
+      <div class="mc-val" style="color:#ff8855;text-shadow:0 0 10px #ff5500;">
+        <span id="outTemp">70</span><span class="mc-unit">°C</span>
+      </div>
+      <div class="mc-bar"><div class="mc-bar-fill" id="barTemp" style="background:linear-gradient(90deg,#ff4400,#ff8800);width:35%;"></div></div>
+    </div>
+  </div>
+
+  <!-- ═══ BOTTOM CENTER: DASHBOARD ═══ -->
+  <div class="panel-box dashboard">
+    <h2>⬡ Vehicle Dashboard</h2>
+    <div class="dash-grid">
+      <div class="dash-metric">
+        <div class="dl">H₂ Pressure</div>
+        <div class="dv" id="dashPressure" style="color:var(--blue);text-shadow:0 0 8px var(--blue);">1.00</div>
+        <div class="ds" style="color:var(--dim);">bar</div>
+      </div>
+      <div class="dash-metric">
+        <div class="dl">Battery</div>
+        <div class="dv" id="dashBattery" style="color:var(--green);text-shadow:0 0 8px var(--green);">85%</div>
+        <div class="ds" style="color:var(--dim);">Li-Ion 72kWh</div>
+      </div>
+      <div class="dash-metric">
+        <div class="dl">Power Out</div>
+        <div class="dv" id="dashPower" style="color:var(--yellow);text-shadow:0 0 8px var(--yellow2);">80 kW</div>
+        <div class="ds" style="color:var(--dim);">electric</div>
+      </div>
+      <div class="dash-metric">
+        <div class="dl">Range Est.</div>
+        <div class="dv" id="dashRange" style="color:var(--teal);text-shadow:0 0 8px var(--teal);">620 km</div>
+        <div class="ds" style="color:var(--dim);">full tank</div>
+      </div>
+      <div class="fault-box">
+        <div class="dl">Fault Code</div>
+        <div class="dv" id="faultCode" style="color:var(--green);">● NONE</div>
+        <div class="ds" id="faultDesc" style="color:var(--dim);font-family:Share Tech Mono,monospace;font-size:.55rem;">All systems nominal</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app-layout -->
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   PHYSICS MODEL
+════════════════════════════════════════════════════════ */
+const PHYSICS = {
+  baseVoltage: 350,    // V at 1 bar
+  basePower: 80,       // kW at 1 bar
+  baseWater: 7.0,      // L/hr at 1 bar
+  baseHeat: 40,        // % loss at 1 bar
+  baseTemp: 70,        // °C at 1 bar
+  baseH2Flow: 8.4,     // g/min at 1 bar
+  baseO2Flow: 67.2,    // L/min at 1 bar
+  baseEff: 58.0,       // % at 1 bar
+
+  compute(bar) {
+    // Efficiency increases slightly with pressure (realistic PEM)
+    const effBoost = 1 + (bar - 1) * 0.04;
+    const flowFactor = bar;           // flow scales with pressure
+    const powerFactor = bar * effBoost;
+
+    const voltage = Math.min(420, this.baseVoltage * (1 + (bar - 1) * 0.065));
+    const power   = Math.min(155, this.basePower   * powerFactor);
+    const water   = this.baseWater * flowFactor;
+    const heatPct = Math.max(28, this.baseHeat - (bar - 1) * 3); // efficiency improves
+    const heatKW  = power * (heatPct / 100) / (1 - heatPct / 100);
+    const temp    = Math.min(95, this.baseTemp + (bar - 1) * 12);
+    const h2Flow  = this.baseH2Flow * flowFactor;
+    const o2Flow  = this.baseO2Flow * flowFactor;
+    const eff     = Math.min(72, this.baseEff * effBoost);
+
+    return { bar, voltage, power, water, heatPct, heatKW, temp, h2Flow, o2Flow, eff };
+  }
+};
+
+/* ═══════════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════════════ */
+let running = true;
+let pressure = 1.0;
+let t = 0; // animation time
+
+/* ═══════════════════════════════════════════════════════
+   ARC GAUGE (Pressure)
+════════════════════════════════════════════════════════ */
+const arcC = document.getElementById('arcCanvas');
+const arcCtx = arcC.getContext('2d');
+
+function drawArc(bar) {
+  const W = arcC.width, H = arcC.height;
+  arcCtx.clearRect(0, 0, W, H);
+  const cx = W / 2, cy = H - 10, r = H - 22;
+  const startA = Math.PI, endA = 2 * Math.PI;
+  const pct = (bar - 0.5) / 2.5;
+  const curA = startA + pct * Math.PI;
+
+  // bg arc
+  arcCtx.beginPath();
+  arcCtx.arc(cx, cy, r, startA, endA);
+  arcCtx.strokeStyle = '#0a2a44';
+  arcCtx.lineWidth = 12;
+  arcCtx.lineCap = 'round';
+  arcCtx.stroke();
+
+  // colored arc
+  const grad = arcCtx.createLinearGradient(cx - r, 0, cx + r, 0);
+  if (bar <= 0.6) { grad.addColorStop(0,'#2244aa'); grad.addColorStop(1,'#0088cc'); }
+  else if (bar <= 2.5) { grad.addColorStop(0,'#00aacc'); grad.addColorStop(1,'#00ff88'); }
+  else { grad.addColorStop(0,'#ff8800'); grad.addColorStop(1,'#ff3a00'); }
+
+  arcCtx.beginPath();
+  arcCtx.arc(cx, cy, r, startA, curA);
+  arcCtx.strokeStyle = grad;
+  arcCtx.lineWidth = 12;
+  arcCtx.shadowBlur = 16;
+  arcCtx.shadowColor = bar > 2.5 ? '#ff6600' : '#00d4ff';
+  arcCtx.stroke();
+  arcCtx.shadowBlur = 0;
+
+  // needle
+  const nA = startA + pct * Math.PI;
+  arcCtx.beginPath();
+  arcCtx.moveTo(cx, cy);
+  arcCtx.lineTo(cx + (r - 6) * Math.cos(nA), cy + (r - 6) * Math.sin(nA));
+  arcCtx.strokeStyle = '#ffffff';
+  arcCtx.lineWidth = 2;
+  arcCtx.stroke();
+
+  // center dot
+  arcCtx.beginPath();
+  arcCtx.arc(cx, cy, 7, 0, Math.PI * 2);
+  arcCtx.fillStyle = '#00d4ff';
+  arcCtx.fill();
+
+  // labels
+  arcCtx.font = 'bold 11px Orbitron, monospace';
+  arcCtx.fillStyle = '#00d4ff';
+  arcCtx.textAlign = 'center';
+  arcCtx.fillText(bar.toFixed(2) + ' bar', cx, cy - r / 2 - 8);
+  arcCtx.font = '9px Share Tech Mono, monospace';
+  arcCtx.fillStyle = '#4a7a99';
+  arcCtx.fillText('H₂ PRESSURE', cx, cy - r / 2 + 5);
+
+  // min/max ticks
+  arcCtx.font = '8px Share Tech Mono';
+  arcCtx.fillStyle = '#2a5a7a';
+  arcCtx.textAlign = 'left';  arcCtx.fillText('0.5', cx - r - 4, cy + 8);
+  arcCtx.textAlign = 'right'; arcCtx.fillText('3.0', cx + r + 4, cy + 8);
+}
+
+/* ═══════════════════════════════════════════════════════
+   UPDATE UI FROM PHYSICS
+════════════════════════════════════════════════════════ */
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+let displayed = PHYSICS.compute(1.0);
+let target    = PHYSICS.compute(1.0);
+
+function updateOutputs(data, instant = false) {
+  const fmt1 = v => v.toFixed(1);
+  const fmt0 = v => Math.round(v);
+
+  document.getElementById('outVoltage').textContent = fmt0(data.voltage);
+  document.getElementById('outPower').textContent   = fmt0(data.power);
+  document.getElementById('outWater').textContent   = fmt1(data.water);
+  document.getElementById('outHeat').textContent    = fmt0(data.heatKW);
+  document.getElementById('outTemp').textContent    = fmt0(data.temp);
+  document.getElementById('heatPct').textContent    = fmt0(data.heatPct) + '%';
+
+  document.getElementById('flowH2').textContent   = fmt1(data.h2Flow)  + ' g/min';
+  document.getElementById('flowO2').textContent   = fmt1(data.o2Flow)  + ' L/min';
+  document.getElementById('stackEff').textContent = fmt1(data.eff)     + '%';
+
+  // bars (max refs: voltage=450, power=160, water=18, temp=100)
+  document.getElementById('barVoltage').style.width = (data.voltage / 450 * 100) + '%';
+  document.getElementById('barPower').style.width   = (data.power   / 160 * 100) + '%';
+  document.getElementById('barWater').style.width   = (data.water   / 18  * 100) + '%';
+  document.getElementById('barTemp').style.width    = (data.temp    / 100 * 100) + '%';
+
+  // heat ring
+  const circ = 125.6;
+  const offset = circ - (data.heatPct / 100) * circ;
+  document.getElementById('heatRing').style.strokeDashoffset = offset;
+
+  // pressure display
+  document.getElementById('pressureVal').textContent = data.bar.toFixed(2) + ' bar';
+  document.getElementById('dashPressure').textContent = data.bar.toFixed(2);
+
+  // dashboard
+  document.getElementById('dashPower').textContent = fmt0(data.power) + ' kW';
+  document.getElementById('dashRange').textContent  = fmt0(300 + data.power * 4) + ' km';
+
+  // warning
+  const wb = document.getElementById('warningBox');
+  wb.className = 'warning-box';
+  if (data.bar > 2.8) {
+    wb.className = 'warning-box danger show';
+    wb.innerHTML = '⚠ OVER-PRESSURE WARNING<br>Pressure exceeds 2.8 bar.<br>Risk of membrane damage!';
+    document.getElementById('faultCode').textContent = '● FC-OVP';
+    document.getElementById('faultCode').style.color = '#ff4400';
+    document.getElementById('faultDesc').textContent = 'Over-pressure detected';
+  } else if (data.bar < 0.6) {
+    wb.className = 'warning-box low show';
+    wb.innerHTML = 'ℹ LOW PRESSURE MODE<br>Below 0.6 bar → Low power.<br>Increase H₂ supply.';
+    document.getElementById('faultCode').textContent = '● FC-LPW';
+    document.getElementById('faultCode').style.color = '#4488cc';
+    document.getElementById('faultDesc').textContent = 'Low power mode';
+  } else {
+    document.getElementById('faultCode').textContent = '● NONE';
+    document.getElementById('faultCode').style.color = '#00ff88';
+    document.getElementById('faultDesc').textContent = 'All systems nominal';
+  }
+
+  // battery (simulated slight drain)
+  const batPct = Math.max(40, 85 - (data.power - 80) * 0.5);
+  document.getElementById('dashBattery').textContent = fmt0(batPct) + '%';
+}
+
+/* ═══════════════════════════════════════════════════════
+   SLIDER EVENT
+════════════════════════════════════════════════════════ */
+const slider = document.getElementById('pressureSlider');
+slider.addEventListener('input', () => {
+  pressure = parseFloat(slider.value);
+  target = PHYSICS.compute(pressure);
+  drawArc(pressure);
+});
+
+/* ═══════════════════════════════════════════════════════
+   START / STOP
+════════════════════════════════════════════════════════ */
+function startReaction() {
+  running = true;
+  document.getElementById('statusText').textContent = 'RUNNING';
+  document.getElementById('statusText').style.color = '#00ff88';
+  document.getElementById('statusText').style.textShadow = '0 0 8px #00ff88';
+  document.getElementById('statusDot').style.background = '#00ff88';
+  document.getElementById('statusDot').style.boxShadow = '0 0 8px #00ff88';
+}
+function stopReaction() {
+  running = false;
+  document.getElementById('statusText').textContent = 'STOPPED';
+  document.getElementById('statusText').style.color = '#ff5500';
+  document.getElementById('statusText').style.textShadow = '0 0 8px #ff5500';
+  document.getElementById('statusDot').style.background = '#ff5500';
+  document.getElementById('statusDot').style.boxShadow = '0 0 8px #ff5500';
+}
+
+/* ═══════════════════════════════════════════════════════
+   3D CANVAS VISUALIZATION
+════════════════════════════════════════════════════════ */
+const vc = document.getElementById('vizCanvas');
+const vctx = vc.getContext('2d');
+
+// Particles
+const particles = [];
+const PARTICLE_COUNT = 80;
+
+class Particle {
+  constructor(type) {
+    this.type = type; // 'h2','o2','electron','water','heat'
+    this.reset();
+  }
+  reset() {
+    const W = vc.width, H = vc.height;
+    const cx = W/2, cy = H/2;
+    switch(this.type) {
+      case 'h2':
+        this.x = 80; this.y = cy - 30 + (Math.random()-0.5)*60;
+        this.vx = 2 + Math.random()*1.5; this.vy = (Math.random()-0.5)*.5;
+        this.r = 4 + Math.random()*3; this.life = 1; this.maxLife = 1;
+        break;
+      case 'o2':
+        this.x = cx - 60 + (Math.random()-0.5)*40; this.y = 60;
+        this.vx = (Math.random()-0.5)*.5; this.vy = 1.5 + Math.random()*1.5;
+        this.r = 4 + Math.random()*3; this.life = 1; this.maxLife = 1;
+        break;
+      case 'electron':
+        this.x = cx - 20 + (Math.random()-0.5)*60; this.y = cy - 20 + (Math.random()-0.5)*80;
+        this.vx = 2.5 + Math.random()*2; this.vy = (Math.random()-0.5)*1;
+        this.r = 3; this.life = 1; this.maxLife = 1;
+        break;
+      case 'water':
+        this.x = W - 120 + (Math.random()-0.5)*40; this.y = cy + (Math.random()-0.5)*40;
+        this.vx = 1.5 + Math.random()*2; this.vy = -1.5 - Math.random()*1.5;
+        this.r = 3 + Math.random()*3; this.life = 1; this.maxLife = 1;
+        break;
+      case 'heat':
+        this.x = cx + (Math.random()-0.5)*80; this.y = cy + (Math.random()-0.5)*60;
+        this.vx = (Math.random()-0.5)*1.5; this.vy = -1 - Math.random()*2;
+        this.r = 6 + Math.random()*8; this.life = 1; this.maxLife = 1;
+        break;
+    }
+    this.decay = 0.008 + Math.random()*0.01;
+  }
+  update(speed) {
+    if (!running) return;
+    this.x += this.vx * speed;
+    this.y += this.vy * speed;
+    this.life -= this.decay * speed;
+    if (this.life <= 0) this.reset();
+  }
+  draw(ctx, W, H) {
+    const cx = W/2, cy = H/2;
+    ctx.globalAlpha = Math.max(0, this.life) * .85;
+    switch(this.type) {
+      case 'h2': {
+        ctx.shadowBlur = 12; ctx.shadowColor = '#00d4ff';
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
+        ctx.fillStyle = '#00aaff'; ctx.fill();
+        ctx.font = 'bold 7px Orbitron,monospace';
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+        ctx.fillText('H₂', this.x, this.y + 2.5);
+        break;
+      }
+      case 'o2': {
+        ctx.shadowBlur = 12; ctx.shadowColor = '#aaddff';
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
+        ctx.fillStyle = '#5588dd'; ctx.fill();
+        ctx.font = 'bold 7px Orbitron,monospace';
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+        ctx.fillText('O₂', this.x, this.y + 2.5);
+        break;
+      }
+      case 'electron': {
+        ctx.shadowBlur = 16; ctx.shadowColor = '#ffe144';
+        // lightning bolt shape
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - this.r*1.5);
+        ctx.lineTo(this.x - this.r, this.y);
+        ctx.lineTo(this.x + this.r*0.3, this.y);
+        ctx.lineTo(this.x - this.r*0.3, this.y + this.r*1.5);
+        ctx.fillStyle = '#ffe144'; ctx.fill();
+        break;
+      }
+      case 'water': {
+        ctx.shadowBlur = 10; ctx.shadowColor = '#00d4ff';
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(100,200,255,${this.life*0.5})`;
+        ctx.fill();
+        ctx.font = '7px Orbitron,monospace';
+        ctx.fillStyle = '#aaddff'; ctx.textAlign = 'center';
+        ctx.fillText('H₂O', this.x, this.y + 2.5);
+        break;
+      }
+      case 'heat': {
+        const g = ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,this.r);
+        g.addColorStop(0,'rgba(255,150,0,0.5)');
+        g.addColorStop(1,'rgba(255,50,0,0)');
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
+        ctx.fillStyle = g; ctx.fill();
+        break;
+      }
+    }
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+}
+
+// Init particles
+function initParticles() {
+  particles.length = 0;
+  const types = ['h2','h2','h2','o2','o2','electron','electron','electron','water','water','heat','heat'];
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const type = types[i % types.length];
+    const p = new Particle(type);
+    // stagger start
+    p.life = Math.random();
+    particles.push(p);
+  }
+}
+
+/* ── Draw the fuel cell (3D perspective box) ── */
+function drawFuelCell(ctx, W, H, data) {
+  const cx = W/2, cy = H/2;
+  const bw = W * 0.45, bh = H * 0.52;
+  const L = cx - bw/2, R = cx + bw/2;
+  const T = cy - bh/2, B = cy + bh/2;
+  const dep = 38; // 3D depth
+  const ox = -20, oy = -15; // offset for perspective
+
+  // ── SHADOW ──
+  const shadowG = ctx.createRadialGradient(cx+dep/2, B+dep/2, 0, cx+dep/2, B+dep/2, bw*0.6);
+  shadowG.addColorStop(0,'rgba(0,100,180,.15)');
+  shadowG.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.beginPath();
+  ctx.ellipse(cx+dep/2, B+20, bw*0.52, 18, 0, 0, Math.PI*2);
+  ctx.fillStyle = shadowG; ctx.fill();
+
+  // ── TOP FACE ──
+  ctx.beginPath();
+  ctx.moveTo(L, T);
+  ctx.lineTo(L+dep+ox, T+oy);
+  ctx.lineTo(R+dep+ox, T+oy);
+  ctx.lineTo(R, T);
+  ctx.closePath();
+  const topG = ctx.createLinearGradient(L,T,R+dep,T+oy);
+  topG.addColorStop(0,'#1a4a8a'); topG.addColorStop(1,'#0e2855');
+  ctx.fillStyle = topG; ctx.fill();
+  ctx.strokeStyle = '#2266aa'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // ── RIGHT FACE ──
+  ctx.beginPath();
+  ctx.moveTo(R, T); ctx.lineTo(R+dep+ox, T+oy);
+  ctx.lineTo(R+dep+ox, B+oy); ctx.lineTo(R, B);
+  ctx.closePath();
+  const rG = ctx.createLinearGradient(R,T,R+dep,B);
+  rG.addColorStop(0,'#0a1e50'); rG.addColorStop(1,'#060e28');
+  ctx.fillStyle = rG; ctx.fill();
+  ctx.strokeStyle = '#1a4a7a'; ctx.lineWidth = 1.2; ctx.stroke();
+
+  // ── MAIN FRONT FACE ──
+  ctx.beginPath();
+  ctx.rect(L, T, bw, bh);
+  const mainG = ctx.createLinearGradient(L, T, R, B);
+  mainG.addColorStop(0,'rgba(20,60,130,.85)');
+  mainG.addColorStop(0.5,'rgba(10,30,80,.8)');
+  mainG.addColorStop(1,'rgba(5,15,40,.85)');
+  ctx.fillStyle = mainG; ctx.fill();
+  ctx.strokeStyle = '#2288cc'; ctx.lineWidth = 2; ctx.stroke();
+
+  // ── STACK PLATES (horizontal lines with gradient shimmer) ──
+  const plateCount = 16;
+  const plateH = bh / plateCount;
+  for (let i = 0; i < plateCount; i++) {
+    const py = T + i * plateH;
+    const alpha = 0.35 + 0.15 * Math.sin(t * 0.04 + i * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(L + 2, py);
+    ctx.lineTo(R - 2, py);
+    ctx.strokeStyle = `rgba(50,120,200,${alpha})`;
+    ctx.lineWidth = 0.8; ctx.stroke();
+  }
+
+  // ── PEM MEMBRANE (vertical center glow) ──
+  const memX = cx;
+  const memG = ctx.createLinearGradient(memX - 8, T, memX + 8, B);
+  const memAlpha = running ? 0.6 + 0.2 * Math.sin(t * 0.06) : 0.3;
+  memG.addColorStop(0,'rgba(0,200,255,0)');
+  memG.addColorStop(0.4,`rgba(0,200,255,${memAlpha})`);
+  memG.addColorStop(0.6,`rgba(100,255,200,${memAlpha*0.8})`);
+  memG.addColorStop(1,'rgba(0,200,255,0)');
+  ctx.beginPath();
+  ctx.rect(memX - 6, T + 4, 12, bh - 8);
+  ctx.fillStyle = memG; ctx.fill();
+  // membrane label
+  ctx.save();
+  ctx.translate(memX, cy);
+  ctx.rotate(-Math.PI/2);
+  ctx.font = 'bold 8px Orbitron, monospace';
+  ctx.fillStyle = 'rgba(100,220,255,.8)';
+  ctx.textAlign = 'center';
+  ctx.fillText('PEM MEMBRANE', 0, 4);
+  ctx.restore();
+
+  // ── ANODE (left) / CATHODE (right) labels ──
+  ctx.font = 'bold 9px Orbitron, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(0,180,255,.8)';
+  ctx.fillText('ANODE (−)', L + bw * 0.25, T + 20);
+  ctx.fillStyle = 'rgba(120,180,255,.8)';
+  ctx.fillText('CATHODE (+)', L + bw * 0.75, T + 20);
+
+  // ── REACTION GLOW ──
+  if (running) {
+    const speed = data.bar;
+    const rx = cx + Math.sin(t * 0.05) * 10;
+    const ry = cy + Math.cos(t * 0.03) * 8;
+    const heatG = ctx.createRadialGradient(rx, ry, 0, rx, ry, bw * 0.38);
+    const gi = (0.35 + 0.1 * Math.sin(t * 0.07)) * Math.min(1, speed * 0.7);
+    heatG.addColorStop(0,`rgba(255,120,0,${gi})`);
+    heatG.addColorStop(0.5,`rgba(255,50,0,${gi*0.4})`);
+    heatG.addColorStop(1,'rgba(255,0,0,0)');
+    ctx.beginPath(); ctx.ellipse(rx, ry, bw*0.35, bh*0.35, 0, 0, Math.PI*2);
+    ctx.fillStyle = heatG; ctx.fill();
+  }
+
+  // ── FRAME BORDER GLOW ──
+  ctx.beginPath(); ctx.rect(L, T, bw, bh);
+  ctx.strokeStyle = `rgba(0,200,255,${0.4 + 0.15*Math.sin(t*0.05)})`;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([8,4]); ctx.stroke(); ctx.setLineDash([]);
+}
+
+/* ── Draw external circuit (electron path) ── */
+function drawCircuit(ctx, W, H, data) {
+  if (!running) return;
+  const cx = W/2, cy = H/2;
+  const bw = W*0.45, bh = H*0.52;
+  const L = cx - bw/2, R = cx + bw/2;
+  const T = cy - bh/2, B = cy + bh/2;
+
+  // External circuit path (U-shape over top)
+  const points = [
+    [L - 10, cy - 30],
+    [L - 60, cy - 30],
+    [L - 60, T - 55],
+    [R + 60, T - 55],
+    [R + 60, cy - 30],
+    [R + 10, cy - 30],
+  ];
+
+  // glowing circuit trace
+  const speed = data.bar;
+  for (let gpass = 0; gpass < 2; gpass++) {
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(points[i][0], points[i][1]);
+    }
+    ctx.strokeStyle = gpass === 0 ? 'rgba(255,225,68,.12)' : 'rgba(255,225,68,.5)';
+    ctx.lineWidth = gpass === 0 ? 10 : 2.5;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (gpass === 1) {
+      ctx.setLineDash([16, 8]);
+      ctx.lineDashOffset = -(t * speed * 0.8 % 24);
+    }
+    ctx.shadowBlur = gpass === 0 ? 0 : 12;
+    ctx.shadowColor = '#ffe144';
+    ctx.stroke();
+    ctx.setLineDash([]); ctx.shadowBlur = 0;
+  }
+
+  // Arrow at end
+  ctx.beginPath();
+  ctx.moveTo(R + 10, cy - 38);
+  ctx.lineTo(R + 10, cy - 22);
+  ctx.lineTo(R + 20, cy - 30);
+  ctx.closePath();
+  ctx.fillStyle = '#ffe144';
+  ctx.shadowBlur = 10; ctx.shadowColor = '#ffe144';
+  ctx.fill(); ctx.shadowBlur = 0;
+
+  // Motor/load symbol
+  const lx = (points[2][0] + points[3][0]) / 2;
+  const ly = T - 55;
+  ctx.beginPath();
+  ctx.arc(lx, ly, 22, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(10,25,60,.9)';
+  ctx.strokeStyle = '#ffe14488'; ctx.lineWidth = 2; ctx.fill(); ctx.stroke();
+  ctx.font = 'bold 9px Orbitron,monospace';
+  ctx.fillStyle = '#ffe144'; ctx.textAlign = 'center';
+  ctx.shadowBlur = 8; ctx.shadowColor = '#ffe144';
+  ctx.fillText('M', lx, ly + 3);
+  ctx.shadowBlur = 0;
+  ctx.font = '7px Share Tech Mono,monospace';
+  ctx.fillStyle = '#aa8800';
+  ctx.fillText('LOAD', lx, ly + 14);
+
+  // Labels
+  ctx.font = 'bold 8px Share Tech Mono,monospace';
+  ctx.fillStyle = '#ffe14488'; ctx.textAlign = 'center';
+  ctx.fillText('e⁻ ELECTRON FLOW', lx, T - 82);
+}
+
+/* ── Draw H2 pipe (left) ── */
+function drawH2Pipe(ctx, W, H, data) {
+  const cx = W/2, cy = H/2;
+  const bw = W*0.45;
+  const L = cx - bw/2;
+  const speed = running ? data.bar : 0;
+
+  // pipe
+  ctx.beginPath();
+  ctx.moveTo(60, cy); ctx.lineTo(L, cy);
+  ctx.strokeStyle = 'rgba(0,150,220,.3)'; ctx.lineWidth = 18;
+  ctx.lineCap = 'round'; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(60, cy); ctx.lineTo(L, cy);
+  ctx.strokeStyle = 'rgba(0,210,255,.6)'; ctx.lineWidth = 3;
+  ctx.setLineDash([20,8]);
+  ctx.lineDashOffset = -(t * speed * 0.9 % 28);
+  ctx.shadowBlur = 14; ctx.shadowColor = '#00d4ff';
+  ctx.stroke();
+  ctx.setLineDash([]); ctx.shadowBlur = 0;
+
+  // label
+  ctx.font = 'bold 10px Orbitron,monospace';
+  ctx.fillStyle = '#00aaff'; ctx.textAlign = 'center';
+  ctx.shadowBlur = 8; ctx.shadowColor = '#00d4ff';
+  ctx.fillText('H₂ INPUT', 90, cy - 22);
+  ctx.font = '8px Share Tech Mono,monospace';
+  ctx.fillStyle = '#0088aa';
+  ctx.shadowBlur = 0;
+  ctx.fillText(data.bar.toFixed(2) + ' bar', 90, cy - 8);
+  ctx.fillText(data.h2Flow.toFixed(1) + ' g/min', 90, cy + 6);
+  // arrow
+  ctx.beginPath();
+  ctx.moveTo(L - 28, cy); ctx.lineTo(L - 8, cy);
+  ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 3;
+  ctx.shadowBlur = 10; ctx.shadowColor = '#00d4ff';
+  ctx.stroke(); ctx.shadowBlur = 0;
+  ctx.beginPath();
+  ctx.moveTo(L - 6, cy - 7); ctx.lineTo(L + 4, cy);
+  ctx.lineTo(L - 6, cy + 7); ctx.closePath();
+  ctx.fillStyle = '#00d4ff'; ctx.fill();
+}
+
+/* ── Draw O2 pipe (top) ── */
+function drawO2Pipe(ctx, W, H, data) {
+  const cx = W/2, cy = H/2;
+  const bh = H*0.52;
+  const T = cy - bh/2;
+  const speed = running ? data.bar : 0;
+
+  ctx.beginPath();
+  ctx.moveTo(cx + 30, 35); ctx.lineTo(cx + 30, T);
+  ctx.strokeStyle = 'rgba(100,150,255,.25)'; ctx.lineWidth = 14;
+  ctx.lineCap = 'round'; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + 30, 35); ctx.lineTo(cx + 30, T);
+  ctx.strokeStyle = 'rgba(160,200,255,.65)'; ctx.lineWidth = 2.5;
+  ctx.setLineDash([16,6]);
+  ctx.lineDashOffset = -(t * speed * 0.7 % 22);
+  ctx.shadowBlur = 12; ctx.shadowColor = '#aaddff';
+  ctx.stroke();
+  ctx.setLineDash([]); ctx.shadowBlur = 0;
+
+  // filter box
+  ctx.beginPath();
+  ctx.roundRect(cx - 10, 10, 80, 30, 5);
+  ctx.fillStyle = 'rgba(10,25,60,.9)';
+  ctx.strokeStyle = '#2266aa'; ctx.lineWidth = 1.5; ctx.fill(); ctx.stroke();
+  ctx.font = 'bold 8px Orbitron,monospace';
+  ctx.fillStyle = '#aaddff'; ctx.textAlign = 'center';
+  ctx.fillText('AIR / O₂ FILTER', cx + 30, 30);
+
+  // arrow
+  ctx.beginPath();
+  ctx.moveTo(cx + 30, T - 28); ctx.lineTo(cx + 30, T - 8);
+  ctx.strokeStyle = '#aaddff'; ctx.lineWidth = 2.5;
+  ctx.shadowBlur = 8; ctx.shadowColor = '#aaddff';
+  ctx.stroke(); ctx.shadowBlur = 0;
+  ctx.beginPath();
+  ctx.moveTo(cx + 23, T - 6); ctx.lineTo(cx + 30, T + 4);
+  ctx.lineTo(cx + 37, T - 6); ctx.closePath();
+  ctx.fillStyle = '#aaddff'; ctx.fill();
+}
+
+/* ── Draw water output (right side) ── */
+function drawWaterOutput(ctx, W, H, data) {
+  const cx = W/2, cy = H/2;
+  const bw = W*0.45;
+  const R = cx + bw/2;
+  const speed = running ? data.bar : 0;
+
+  // pipe
+  ctx.beginPath();
+  ctx.moveTo(R, cy + 40); ctx.lineTo(W - 50, cy + 40);
+  ctx.strokeStyle = 'rgba(0,150,220,.2)'; ctx.lineWidth = 14;
+  ctx.lineCap = 'round'; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(R, cy + 40); ctx.lineTo(W - 50, cy + 40);
+  ctx.strokeStyle = 'rgba(100,200,255,.55)'; ctx.lineWidth = 2.5;
+  ctx.setLineDash([14,6]);
+  ctx.lineDashOffset = -(t * speed * 0.7 % 20);
+  ctx.shadowBlur = 10; ctx.shadowColor = '#00c8ff';
+  ctx.stroke();
+  ctx.setLineDash([]); ctx.shadowBlur = 0;
+
+  // label
+  ctx.font = 'bold 10px Orbitron,monospace';
+  ctx.fillStyle = '#55aaff'; ctx.textAlign = 'center';
+  ctx.shadowBlur = 8; ctx.shadowColor = '#00c8ff';
+  ctx.fillText('H₂O OUT', W - 70, cy + 25);
+  ctx.shadowBlur = 0;
+  ctx.font = '8px Share Tech Mono,monospace';
+  ctx.fillStyle = '#336688';
+  ctx.fillText(data.water.toFixed(1) + ' L/hr', W - 70, cy + 40);
+}
+
+/* ── Draw heat exhaust (bottom) ── */
+function drawHeatExhaust(ctx, W, H, data) {
+  if (!running) return;
+  const cx = W/2, cy = H/2;
+  const bh = H*0.52;
+  const B = cy + bh/2;
+  const speed = data.bar;
+
+  ctx.beginPath();
+  ctx.moveTo(cx - 50, B); ctx.lineTo(cx - 50, H - 25);
+  ctx.strokeStyle = 'rgba(200,80,0,.2)'; ctx.lineWidth = 16;
+  ctx.lineCap = 'round'; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - 50, B); ctx.lineTo(cx - 50, H - 25);
+  ctx.strokeStyle = 'rgba(255,120,0,.6)'; ctx.lineWidth = 2.5;
+  ctx.setLineDash([12,6]);
+  ctx.lineDashOffset = -(t * speed * 0.5 % 18);
+  ctx.shadowBlur = 10; ctx.shadowColor = '#ff8800';
+  ctx.stroke();
+  ctx.setLineDash([]); ctx.shadowBlur = 0;
+
+  ctx.font = '9px Orbitron,monospace';
+  ctx.fillStyle = '#ff8800'; ctx.textAlign = 'center';
+  ctx.shadowBlur = 6; ctx.shadowColor = '#ff6600';
+  ctx.fillText('HEAT OUT', cx - 50, H - 12);
+  ctx.shadowBlur = 0;
+  ctx.font = '7px Share Tech Mono,monospace';
+  ctx.fillStyle = '#884400';
+  ctx.fillText(data.heatKW.toFixed(0) + ' kW', cx - 50, H - 1);
+}
+
+/* ── Draw cool pipe (bottom) ── */
+function drawCoolPipe(ctx, W, H, data) {
+  const cx = W/2, cy = H/2;
+  const bh = H*0.52;
+  const B = cy + bh/2;
+  const speed = running ? data.bar : 0;
+
+  ctx.beginPath();
+  ctx.moveTo(cx + 50, B); ctx.lineTo(cx + 50, H - 25);
+  ctx.strokeStyle = 'rgba(0,80,150,.2)'; ctx.lineWidth = 12;
+  ctx.lineCap = 'round'; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + 50, B); ctx.lineTo(cx + 50, H - 25);
+  ctx.strokeStyle = 'rgba(0,160,220,.55)'; ctx.lineWidth = 2.5;
+  ctx.setLineDash([12,6]);
+  ctx.lineDashOffset = -(t * speed * 0.5 % 18);
+  ctx.shadowBlur = 10; ctx.shadowColor = '#00aadd';
+  ctx.stroke();
+  ctx.setLineDash([]); ctx.shadowBlur = 0;
+
+  ctx.font = '9px Orbitron,monospace';
+  ctx.fillStyle = '#00aadd'; ctx.textAlign = 'center';
+  ctx.fillText('COOLANT', cx + 50, H - 12);
+  ctx.font = '7px Share Tech Mono,monospace';
+  ctx.fillStyle = '#005577';
+  ctx.fillText('LOOP', cx + 50, H - 1);
+}
+
+/* ── Voltage output display ── */
+function drawOutputBox(ctx, W, H, data) {
+  const bw = W*0.45, bh = H*0.52;
+  const cx = W/2, cy = H/2;
+  const R = cx + bw/2;
+  const T = cy - bh/2;
+
+  ctx.beginPath();
+  ctx.roundRect(R + 18, T, 110, 90, 8);
+  ctx.fillStyle = 'rgba(5,15,35,.92)';
+  ctx.strokeStyle = '#ffe14444'; ctx.lineWidth = 1.5; ctx.fill(); ctx.stroke();
+
+  ctx.font = 'bold 7px Share Tech Mono,monospace';
+  ctx.fillStyle = '#4a7a99'; ctx.textAlign = 'left';
+  ctx.fillText('⚡ OUTPUT', R + 28, T + 16);
+
+  ctx.font = 'bold 18px Orbitron,monospace';
+  ctx.fillStyle = '#ffe144';
+  ctx.shadowBlur = 12; ctx.shadowColor = '#ffaa00';
+  ctx.fillText(Math.round(data.voltage) + ' V', R + 28, T + 40);
+  ctx.shadowBlur = 0;
+
+  ctx.font = 'bold 13px Orbitron,monospace';
+  ctx.fillStyle = '#00ff88';
+  ctx.shadowBlur = 8; ctx.shadowColor = '#00cc44';
+  ctx.fillText(Math.round(data.power) + ' kW', R + 28, T + 60);
+  ctx.shadowBlur = 0;
+
+  ctx.font = '7px Share Tech Mono,monospace';
+  ctx.fillStyle = '#3366aa';
+  ctx.shadowBlur = 0;
+  ctx.fillText(data.temp.toFixed(0) + '°C · ' + data.eff.toFixed(0) + '% eff', R + 28, T + 78);
+}
+
+/* ── main render ── */
+function render() {
+  const W = vc.width, H = vc.height;
+  vctx.clearRect(0, 0, W, H);
+
+  // background
+  const bgG = vctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)*0.6);
+  bgG.addColorStop(0,'#061828'); bgG.addColorStop(0.6,'#020d1e'); bgG.addColorStop(1,'#010810');
+  vctx.fillStyle = bgG; vctx.fillRect(0, 0, W, H);
+
+  // grid
+  vctx.save();
+  vctx.globalAlpha = .04;
+  vctx.strokeStyle = '#00d4ff'; vctx.lineWidth = .6;
+  for (let x = 0; x < W; x += 50) { vctx.beginPath(); vctx.moveTo(x,0); vctx.lineTo(x,H); vctx.stroke(); }
+  for (let y = 0; y < H; y += 50) { vctx.beginPath(); vctx.moveTo(0,y); vctx.lineTo(W,y); vctx.stroke(); }
+  vctx.restore();
+
+  // lerp displayed values
+  const lerpSpeed = 0.05;
+  displayed.voltage += (target.voltage - displayed.voltage) * lerpSpeed;
+  displayed.power   += (target.power   - displayed.power)   * lerpSpeed;
+  displayed.water   += (target.water   - displayed.water)   * lerpSpeed;
+  displayed.heatPct += (target.heatPct - displayed.heatPct) * lerpSpeed;
+  displayed.heatKW  += (target.heatKW  - displayed.heatKW)  * lerpSpeed;
+  displayed.temp    += (target.temp    - displayed.temp)     * lerpSpeed;
+  displayed.h2Flow  += (target.h2Flow  - displayed.h2Flow)   * lerpSpeed;
+  displayed.o2Flow  += (target.o2Flow  - displayed.o2Flow)   * lerpSpeed;
+  displayed.eff     += (target.eff     - displayed.eff)      * lerpSpeed;
+  displayed.bar = pressure;
+
+  const data = displayed;
+
+  drawH2Pipe(vctx, W, H, data);
+  drawO2Pipe(vctx, W, H, data);
+  drawFuelCell(vctx, W, H, data);
+  drawCircuit(vctx, W, H, data);
+  drawWaterOutput(vctx, W, H, data);
+  drawHeatExhaust(vctx, W, H, data);
+  drawCoolPipe(vctx, W, H, data);
+  drawOutputBox(vctx, W, H, data);
+
+  // particles
+  if (running) {
+    const speed = Math.min(2.5, data.bar);
+    particles.forEach(p => {
+      p.update(speed);
+      p.draw(vctx, W, H);
+    });
+  }
+
+  t++;
+  updateOutputs(displayed);
+  requestAnimationFrame(render);
+}
+
+/* ── Resize canvas ── */
+function resizeCanvas() {
+  const rect = vc.parentElement.getBoundingClientRect();
+  vc.width  = Math.max(400, rect.width  - 28);
+  vc.height = Math.max(380, rect.height - 28);
+}
+
+/* ── INIT ── */
+window.addEventListener('resize', () => { resizeCanvas(); initParticles(); });
+resizeCanvas();
+initParticles();
+drawArc(1.0);
+target = PHYSICS.compute(1.0);
+displayed = { ...target };
+
+// Link slider to target
+slider.addEventListener('input', () => {
+  pressure = parseFloat(slider.value);
+  target = PHYSICS.compute(pressure);
+  drawArc(pressure);
+});
+
+render();
+</script>
+</body>
+</html>
